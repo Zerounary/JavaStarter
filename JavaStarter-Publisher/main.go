@@ -1,53 +1,51 @@
 package main
 
 import (
-	"encoding/binary"
+	"bytes"
+	"flag"
 	"fmt"
-	"net"
+	"io/ioutil"
+	"log"
+	"time"
 
-	"github.com/smallnest/goframe"
+	"github.com/jlaffaye/ftp"
 )
 
 func main() {
-	conn, err := net.Dial("tcp", "127.0.0.1:9000")
+	var ftpServer string
+	var ftpPort string
+	var filePath string
+	var remoteFile string
+
+	flag.StringVar(&ftpServer, "ip", "127.0.0.1", "FTP Server ip")
+	flag.StringVar(&ftpPort, "port", "2121", "FTP Server Port")
+	flag.StringVar(&filePath, "lf", "", "local file")
+	flag.StringVar(&remoteFile, "rf", "./", "remote file")
+
+	flag.Parse()
+
+	ftpDial := ftpServer + ":" + ftpPort
+
+	c, err := ftp.Dial(ftpDial, ftp.DialWithTimeout(5*time.Second))
 	if err != nil {
-		panic(err)
-	}
-	defer conn.Close()
-
-	encoderConfig := goframe.EncoderConfig{
-		ByteOrder:                       binary.BigEndian,
-		LengthFieldLength:               4,
-		LengthAdjustment:                0,
-		LengthIncludesLengthFieldLength: false,
-	}
-
-	decoderConfig := goframe.DecoderConfig{
-		ByteOrder:           binary.BigEndian,
-		LengthFieldOffset:   0,
-		LengthFieldLength:   4,
-		LengthAdjustment:    0,
-		InitialBytesToStrip: 4,
+		log.Fatal(err)
 	}
 
-	fc := goframe.NewLengthFieldBasedFrameConn(encoderConfig, decoderConfig, conn)
-	err = fc.WriteFrame([]byte("hello"))
+	err = c.Login("admin", "123456")
 	if err != nil {
-		panic(err)
-	}
-	err = fc.WriteFrame([]byte("world"))
-	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	buf, err := fc.ReadFrame()
+	// Do something with the FTP conn
+
+	data, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		fmt.Println("open file failed!, err:", err)
+		return
+	}
+	err = c.Stor(remoteFile, bytes.NewBuffer(data))
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("received: ", string(buf))
-	buf, err = fc.ReadFrame()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("received: ", string(buf))
+	fmt.Println("上传成功")
 }
