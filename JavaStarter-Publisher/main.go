@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/jlaffaye/ftp"
@@ -43,9 +44,12 @@ func main() {
 		fmt.Println("open file failed!, err:", err)
 		return
 	}
+	lastIndex := strings.LastIndex(remoteFile, "/")
+	c.MakeDir(remoteFile[:lastIndex])
 	err = c.Stor(remoteFile, bytes.NewBuffer(data))
 	if err != nil {
 		panic(err)
 	}
+
 	fmt.Println("上传成功")
 }
